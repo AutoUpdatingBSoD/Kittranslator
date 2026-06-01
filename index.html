@@ -170,7 +170,7 @@ async function processAudio(arrayBuffer) {
     const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
 
     const features = extractMFCC(audioBuffer);
-
+    console.log("FEATURES:", features);
     runInference(features);
 }
 
