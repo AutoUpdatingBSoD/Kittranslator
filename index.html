@@ -11,6 +11,7 @@
     <title>Michael Hammond's Website</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@0.9.3/css/bulma.min.css">
     <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/fft.js/dist/fft.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web/dist/ort.min.js"></script>
 </head>
   <style>
@@ -90,7 +91,78 @@ $(document).ready(function () {
 /* ----------------------------
    MIC RECORDING
 ---------------------------- */
+async function getAudioBuffer(file) {
+    const arrayBuffer = await file.arrayBuffer();
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 
+    return await audioCtx.decodeAudioData(arrayBuffer);
+}
+  function frameSignal(signal, frameSize, hopSize) {
+    const frames = [];
+
+    for (let i = 0; i < signal.length; i += hopSize) {
+        frames.push(signal.slice(i, i + frameSize));
+    }
+
+    return frames;
+}
+  function hzToMel(hz) {
+    return 2595 * Math.log10(1 + hz / 700);
+}
+
+function melToHz(mel) {
+    return 700 * (Math.pow(10, mel / 2595) - 1);
+}
+  function computeMFCC(audioBuffer, sampleRate = 16000) {
+    const signal = audioBuffer.getChannelData(0);
+
+    const frameSize = 1024;
+    const hopSize = 512;
+
+    const frames = frameSignal(signal, frameSize, hopSize);
+
+    const mfccs = [];
+
+    for (let frame of frames) {
+        if (frame.length < frameSize) continue;
+
+        // 1. apply window (Hamming)
+        for (let i = 0; i < frame.length; i++) {
+            frame[i] *= 0.54 - 0.46 * Math.cos((2 * Math.PI * i) / frame.length);
+        }
+
+        // 2. FFT (using FFT.js)
+        const fft = new FFT(frameSize);
+        const out = fft.createComplexArray();
+        const input = fft.toComplexArray(frame);
+
+        fft.transform(out, input);
+
+        // 3. magnitude spectrum
+        const mags = [];
+        for (let i = 0; i < frameSize / 2; i++) {
+            const re = out[2 * i];
+            const im = out[2 * i + 1];
+            mags.push(Math.sqrt(re * re + im * im));
+        }
+
+        // 4. log (simplified MFCC step)
+        const logEnergies = mags.map(m => Math.log(m + 1e-8));
+
+        mfccs.push(logEnergies.slice(0, 13)); // approximate MFCCs
+    }
+
+    // 5. average over time (like librosa.mean)
+    const result = new Array(13).fill(0);
+
+    for (let i = 0; i < mfccs.length; i++) {
+        for (let j = 0; j < 13; j++) {
+            result[j] += mfccs[i][j];
+        }
+    }
+
+    return result.map(v => v / mfccs.length);
+}
 $("#startMic").click(async () => {
     try {
         stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -169,7 +241,7 @@ async function processAudio(arrayBuffer) {
 
     const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
 
-    const features = extractMFCC(audioBuffer);
+    const features = computeMFCC(audioBuffer);
     console.log("FEATURES:", features);
     runInference(features);
 }
