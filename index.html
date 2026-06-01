@@ -29,7 +29,7 @@
     <div class="has-text-centered">
 
       <h1 class="title is-1">Kittranslator</h1>
-      <h2 class="subtitle is-4">Cat meow emotion detector</h2>
+      <h2 class="subtitle is-4">Cat meow emotion detector test</h2>
 
       <div class="buttons is-centered">
         <button class="button is-primary" id="startMic">Start Mic</button>
@@ -75,7 +75,37 @@ let chunks = [];
 let lastBlob = null;
 
 let session = null;
+const mean = [
+ -15.11056098,
+ -15.06655388,
+ -14.79963755,
+ -12.10701173,
+ -8.3361578,
+ -6.9080754,
+ -6.8050199,
+ -7.7387828,
+ -9.43176519,
+ -12.75636557,
+ -14.75740773,
+ -15.1060916,
+ -15.12521379
+];
 
+const scale = [
+ 1.19643364,
+ 1.3112811,
+ 1.71614279,
+ 3.50026776,
+ 2.96512775,
+ 2.44709461,
+ 2.32429692,
+ 2.46965986,
+ 2.5462934,
+ 2.79167644,
+ 1.651525,
+ 1.21636359,
+ 1.21713445
+];
 /* ----------------------------
    LOAD ONNX MODEL
 ---------------------------- */
@@ -83,10 +113,13 @@ let session = null;
 async function loadModel() {
     session = await ort.InferenceSession.create("catmeows.onnx");
     console.log("ONNX model loaded");
+    console.log(session.inputNames);
+    console.log(session.outputNames);
 }
 
 $(document).ready(function () {
     loadModel();
+
 });
 
 /* ----------------------------
@@ -98,72 +131,7 @@ async function getAudioBuffer(file) {
 
     return await audioCtx.decodeAudioData(arrayBuffer);
 }
-  function frameSignal(signal, frameSize, hopSize) {
-    const frames = [];
-
-    for (let i = 0; i < signal.length; i += hopSize) {
-        frames.push(signal.slice(i, i + frameSize));
-    }
-
-    return frames;
-}
-  function hzToMel(hz) {
-    return 2595 * Math.log10(1 + hz / 700);
-}
-
-function melToHz(mel) {
-    return 700 * (Math.pow(10, mel / 2595) - 1);
-}
-  function computeMFCC(audioBuffer, sampleRate = 16000) {
-    const signal = audioBuffer.getChannelData(0);
-
-    const frameSize = 1024;
-    const hopSize = 512;
-
-    const frames = frameSignal(signal, frameSize, hopSize);
-
-    const mfccs = [];
-    const fft = new FFT(frameSize);
-    for (let frame of frames) {
-        if (frame.length < frameSize) continue;
-
-        // 1. apply window (Hamming)
-        for (let i = 0; i < frame.length; i++) {
-            frame[i] *= 0.54 - 0.46 * Math.cos((2 * Math.PI * i) / frame.length);
-        }
-
-        // 2. FFT (using FFT.js)
-        const fft = new FFT(frameSize);
-        const out = fft.createComplexArray();
-        const input = fft.toComplexArray(frame);
-
-        fft.transform(out, input);
-
-        // 3. magnitude spectrum
-        const mags = [];
-        for (let i = 0; i < frameSize / 2; i++) {
-            const re = out[2 * i];
-            const im = out[2 * i + 1];
-            mags.push(Math.sqrt(re * re + im * im));
-        }
-
-        // 4. log (simplified MFCC step)
-        const logEnergies = mags.map(m => Math.log(m + 1e-8));
-
-        mfccs.push(logEnergies.slice(0, 13)); // approximate MFCCs
-    }
-
-    // 5. average over time (like librosa.mean)
-    const result = new Array(13).fill(0);
-
-    for (let i = 0; i < mfccs.length; i++) {
-        for (let j = 0; j < 13; j++) {
-            result[j] += mfccs[i][j];
-        }
-    }
-
-    return result.map(v => v / mfccs.length);
-}
+  
 $("#startMic").click(async () => {
     try {
         stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -260,9 +228,15 @@ async function processAudio(arrayBuffer) {
 
     const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
 
-    const features = extractFeatures(audioBuffer);
+const features = extractFeatures(audioBuffer);
+console.log("Raw features:", features);
+for (let i = 0; i < 13; i++) {
+    features[i] = (features[i] - mean[i]) / scale[i];
+}
 
-    runInference(features);
+console.log("Normalized features:", features);
+
+runInference(features);
 }
 
 /* ----------------------------
@@ -281,7 +255,8 @@ async function runInference(features) {
         new Float32Array(features),
         [1, 13]
     );
-
+    console.log(input.dims);
+    console.log(features);
     const feeds = {};
     feeds[session.inputNames[0]] = input;
 
