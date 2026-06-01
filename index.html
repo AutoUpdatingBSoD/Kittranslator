@@ -83,7 +83,9 @@ async function loadModel() {
     console.log("ONNX model loaded");
 }
 
-loadModel();
+$(document).ready(function () {
+    loadModel();
+});
 
 /* ----------------------------
    MIC RECORDING
