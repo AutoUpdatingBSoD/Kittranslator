@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+  <html lang="en">
+  <!--Name: Michael Hammond;
+    File Name: Portfolio.html;
+  -->
+
+  <head>
+
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Michael Hammond's Website</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@0.9.3/css/bulma.min.css">
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web/dist/ort.min.js"></script>
+</head>
+  <style>
+    .leftalign{
+      text-align: left;
+    }
+    .centered{
+      text-align: center;
+    }
+    </style>
+  <body>
+<section class="hero is-fullheight is-dark is-bold">
+  <div class="hero-body is-flex is-justify-content-center is-align-items-center">
+
+    <div class="has-text-centered">
+
+      <h1 class="title is-1">Kittranslator</h1>
+      <h2 class="subtitle is-4">Cat meow emotion detector</h2>
+
+      <div class="buttons is-centered">
+        <button class="button is-primary" id="startMic">Start Mic</button>
+        <button class="button is-danger" id="stopMic">Stop Mic</button>
+        <button class="button is-link" id="playLast">Play Last Recording</button>
+      </div>
+
+      <br>
+
+      <div class="file has-name is-centered is-flex is-justify-content-center">
+        <label class="file-label">
+          <input class="file-input" type="file" id="fileInput" accept="audio/*">
+          <span class="file-cta">
+            <span class="file-label">Upload Audio</span>
+          </span>
+        </label>
+      </div>
+
+      <br>
+
+      <p id="status" class="has-text-white">Idle</p>
+      <h3 id="result" class="title is-4 has-text-white">Waiting...</h3>
+
+      <audio id="player" controls></audio>
+
+    </div>
+  </div>
+</section>
+        <a href="https://autoupdatingbsod.github.io" class="button is-link centered">About the Author</a>
+
+
+<body>
+
+
+
+
+<script>
+/* ----------------------------
+   GLOBAL STATE
+---------------------------- */
+
+let mediaRecorder = null;
+let stream = null;
+let chunks = [];
+let lastBlob = null;
+
+let session = null;
+
+/* ----------------------------
+   LOAD ONNX MODEL
+---------------------------- */
+
+async function loadModel() {
+    session = await ort.InferenceSession.create("catmeows.onnx");
+    console.log("ONNX model loaded");
+}
+
+loadModel();
+
+/* ----------------------------
+   MIC RECORDING
+---------------------------- */
+
+$("#startMic").click(async () => {
+    try {
+        stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+
+        mediaRecorder = new MediaRecorder(stream);
+        chunks = [];
+
+        mediaRecorder.ondataavailable = (e) => {
+            chunks.push(e.data);
+        };
+
+        mediaRecorder.onstop = async () => {
+            lastBlob = new Blob(chunks, { type: "audio/webm" });
+
+            // playback
+            const url = URL.createObjectURL(lastBlob);
+            $("#player").attr("src", url);
+
+            const arrayBuffer = await lastBlob.arrayBuffer();
+            processAudio(arrayBuffer);
+        };
+
+        mediaRecorder.start();
+        $("#status").text("Recording...");
+    } catch (err) {
+        console.error(err);
+        $("#status").text("Mic error");
+    }
+});
+
+$("#stopMic").click(() => {
+    if (!mediaRecorder || mediaRecorder.state !== "recording") return;
+
+    mediaRecorder.stop();
+
+    if (stream) {
+        stream.getTracks().forEach(t => t.stop());
+        stream = null;
+    }
+
+    $("#status").text("Processing...");
+});
+
+/* ----------------------------
+   FILE UPLOAD
+---------------------------- */
+
+$("#fileInput").on("change", async function (e) {
+    const file = e.target.files[0];
+
+    const url = URL.createObjectURL(file);
+    $("#player").attr("src", url);
+
+    const arrayBuffer = await file.arrayBuffer();
+    processAudio(arrayBuffer);
+});
+
+/* ----------------------------
+   PLAY LAST RECORDING
+---------------------------- */
+
+$("#playLast").click(() => {
+    if (!lastBlob) return;
+
+    const url = URL.createObjectURL(lastBlob);
+    const audio = new Audio(url);
+    audio.play();
+});
+
+/* ----------------------------
+   AUDIO PIPELINE
+---------------------------- */
+
+async function processAudio(arrayBuffer) {
+    const audioCtx = new AudioContext({ sampleRate: 16000 });
+
+    const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
+
+    const features = extractMFCC(audioBuffer);
+
+    runInference(features);
+}
+
+/* ----------------------------
+   SIMPLE MFCC APPROX (matches Python shape 13)
+---------------------------- */
+
+function extractMFCC(audioBuffer) {
+    const data = audioBuffer.getChannelData(0);
+
+    const size = 13;
+    let features = new Array(size).fill(0);
+
+    const step = Math.floor(data.length / size);
+
+    for (let i = 0; i < size; i++) {
+        let sum = 0;
+
+        for (let j = 0; j < step; j++) {
+            sum += data[i * step + j] || 0;
+        }
+
+        features[i] = sum / step;
+    }
+
+    return features;
+}
+
+/* ----------------------------
+   ONNX INFERENCE
+---------------------------- */
+
+async function runInference(features) {
+    if (!session) {
+        $("#result").text("Model not loaded");
+        return;
+    }
+
+    const input = new ort.Tensor(
+        "float32",
+        Float32Array.from(features),
+        [1, 13]
+    );
+
+    const feeds = {};
+    feeds[session.inputNames[0]] = input;
+
+    const results = await session.run(feeds);
+
+    const output = results[session.outputNames[0]];
+    const data = output.data;
+
+    const labels = [
+        "annoyed (brushing)",
+        "feed me",
+        "attention/stress"
+    ];
+
+    const maxIndex = data.indexOf(Math.max(...data));
+
+    $("#result").text(labels[maxIndex]);
+}
+
+</script>
+
+</body>
+</html>
