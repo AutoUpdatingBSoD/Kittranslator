@@ -29,7 +29,7 @@
     <div class="has-text-centered">
 
       <h1 class="title is-1">Kittranslator</h1>
-      <h2 class="subtitle is-4">Cat meow emotion detector test</h2>
+      <h2 class="subtitle is-4">Cat meow emotion detector</h2>
 
       <div class="buttons is-centered">
         <button class="button is-primary" id="startMic">Start Mic</button>
@@ -289,6 +289,7 @@ async function runInference(features) {
 
     const output = results[session.outputNames[0]];
     const data = Array.from(output.data);
+  console.log("Raw output:", data);
 
     const labels = [
         "annoyed (brushing)",
