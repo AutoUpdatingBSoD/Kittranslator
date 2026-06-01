@@ -210,7 +210,25 @@ $("#stopMic").click(() => {
 /* ----------------------------
    FILE UPLOAD
 ---------------------------- */
+function extractFeatures(audioBuffer) {
+    const data = audioBuffer.getChannelData(0);
 
+    const features = new Array(13).fill(0);
+    const block = Math.floor(data.length / 13);
+
+    for (let i = 0; i < 13; i++) {
+        let sum = 0;
+
+        for (let j = 0; j < block; j++) {
+            const v = data[i * block + j];
+            sum += v * v;
+        }
+
+        features[i] = Math.log(sum / block + 1e-8);
+    }
+
+    return features;
+}
 $("#fileInput").on("change", async function (e) {
     const file = e.target.files[0];
 
@@ -242,8 +260,8 @@ async function processAudio(arrayBuffer) {
 
     const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
 
-    const features = computeMFCC(audioBuffer);
-    console.log("FEATURES:", features);
+    const features = extractFeatures(audioBuffer);
+
     runInference(features);
 }
 
@@ -251,44 +269,18 @@ async function processAudio(arrayBuffer) {
    SIMPLE MFCC APPROX (matches Python shape 13)
 ---------------------------- */
 
-function extractMFCC(audioBuffer) {
-    const data = audioBuffer.getChannelData(0);
 
-    const size = 13;
-    let features = new Array(size).fill(0);
-
-    const step = Math.floor(data.length / size);
-
-    for (let i = 0; i < size; i++) {
-        let sum = 0;
-
-        for (let j = 0; j < step; j++) {
-            sum += data[i * step + j] || 0;
-        }
-
-        features[i] = sum / step;
-    }
-
-    return features;
-}
 
 /* ----------------------------
    ONNX INFERENCE
 ---------------------------- */
 
 async function runInference(features) {
-    if (!session) {
-        $("#result").text("Model not loaded");
-        return;
-    }
-
-   const inputData = new Float32Array(features);
-
-const input = new ort.Tensor(
-    "float32",
-    inputData,
-    [1, 13]
-);
+    const input = new ort.Tensor(
+        "float32",
+        new Float32Array(features),
+        [1, 13]
+    );
 
     const feeds = {};
     feeds[session.inputNames[0]] = input;
@@ -296,7 +288,7 @@ const input = new ort.Tensor(
     const results = await session.run(feeds);
 
     const output = results[session.outputNames[0]];
-    const data = output.data;
+    const data = Array.from(output.data);
 
     const labels = [
         "annoyed (brushing)",
@@ -305,17 +297,16 @@ const input = new ort.Tensor(
     ];
 
     let maxIndex = 0;
-let maxVal = data[0];
 
-for (let i = 1; i < data.length; i++) {
-    if (data[i] > maxVal) {
-        maxVal = data[i];
-        maxIndex = i;
+    for (let i = 1; i < data.length; i++) {
+        if (data[i] > data[maxIndex]) {
+            maxIndex = i;
+        }
     }
-}
 
     $("#result").text(labels[maxIndex]);
 }
+
 
 </script>
 
