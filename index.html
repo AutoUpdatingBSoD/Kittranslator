@@ -123,7 +123,7 @@ function melToHz(mel) {
     const frames = frameSignal(signal, frameSize, hopSize);
 
     const mfccs = [];
-
+    const fft = new FFT(frameSize);
     for (let frame of frames) {
         if (frame.length < frameSize) continue;
 
