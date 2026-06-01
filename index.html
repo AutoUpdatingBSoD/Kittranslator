@@ -209,11 +209,13 @@ async function runInference(features) {
         return;
     }
 
-    const input = new ort.Tensor(
-        "float32",
-        Float32Array.from(features),
-        [1, 13]
-    );
+   const inputData = new Float32Array(features);
+
+const input = new ort.Tensor(
+    "float32",
+    inputData,
+    [1, 13]
+);
 
     const feeds = {};
     feeds[session.inputNames[0]] = input;
@@ -229,7 +231,15 @@ async function runInference(features) {
         "attention/stress"
     ];
 
-    const maxIndex = data.indexOf(Math.max(...data));
+    let maxIndex = 0;
+let maxVal = data[0];
+
+for (let i = 1; i < data.length; i++) {
+    if (data[i] > maxVal) {
+        maxVal = data[i];
+        maxIndex = i;
+    }
+}
 
     $("#result").text(labels[maxIndex]);
 }
