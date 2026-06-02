@@ -28,8 +28,8 @@ has no support for iOS at the moment.
                                    PREREQUISITES                               
 --------------------------------------------------------------------------------
 
--Any device that isn't iOS or iPadOS
--(ideally) Google Chrome for mic support
+- Any device that isn't iOS or iPadOS
+- (ideally) Google Chrome for mic support
 
 --------------------------------------------------------------------------------
                                         RUN                               
@@ -52,8 +52,8 @@ has no support for iOS at the moment.
     
 - Roadmap:
 
-   ~~- Complete prototype~~ - Done
-   ~~- Make it look halfway decent~~ - Done
+   - ~~- Complete prototype~~ Done
+   - ~~- Make it look halfway decent~~ Done
    - Finish fully working app
    - Make it work on iOS (stretch goal)
    
