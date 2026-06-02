@@ -1,17 +1,16 @@
 <!DOCTYPE html>
   <html lang="en">
   <!--Name: Michael Hammond;
-    File Name: Portfolio.html;
+    File Name: index.html;
   -->
 
   <head>
 
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Michael Hammond's Website</title>
+    <title>Kittranslator</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@0.9.3/css/bulma.min.css">
     <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
-        <script src="https://cdn.jsdelivr.net/npm/fft.js/dist/fft.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web/dist/ort.min.js"></script>
 </head>
   <style>
@@ -20,6 +19,9 @@
     }
     .centered{
       text-align: center;
+    }
+    .width-25{
+      width: 25%;
     }
     </style>
   <body>
@@ -34,7 +36,6 @@
       <div class="buttons is-centered">
         <button class="button is-primary" id="startMic">Start Mic</button>
         <button class="button is-danger" id="stopMic">Stop Mic</button>
-        <button class="button is-link" id="playLast">Play Last Recording</button>
       </div>
 
       <br>
@@ -54,11 +55,11 @@
       <h3 id="result" class="title is-4 has-text-white">Waiting...</h3>
 
       <audio id="player" controls></audio>
-
+              <h2 class="subtitle is-5">This is super early in development and I don't have a lot of data yet, so expect bugs and inaccuracies!</h2>
     </div>
   </div>
-              <h2 class="subtitle is-4">This is super early in development and I don't have a lot of data yet, so expect bugs!</h2>
-          <a href="https://autoupdatingbsod.github.io" class="button is-link centered">About the Author</a>
+
+          <a href="https://autoupdatingbsod.github.io" class="button is-link centered width-25">About the Author</a>
 </section>
 
 
@@ -66,6 +67,7 @@
 
 
 <script>
+  
 /* ----------------------------
    GLOBAL STATE
 ---------------------------- */
@@ -107,6 +109,7 @@ const scale = [
  1.21636359,
  1.21713445
 ];
+  
 /* ----------------------------
    LOAD ONNX MODEL
 ---------------------------- */
@@ -175,10 +178,11 @@ $("#stopMic").click(() => {
 
     $("#status").text("Processing...");
 });
-
+  
 /* ----------------------------
    FILE UPLOAD
 ---------------------------- */
+  
 function extractFeatures(audioBuffer) {
     const data = audioBuffer.getChannelData(0);
 
@@ -211,7 +215,7 @@ $("#fileInput").on("change", async function (e) {
 /* ----------------------------
    PLAY LAST RECORDING
 ---------------------------- */
-
+  
 $("#playLast").click(() => {
     if (!lastBlob) return;
 
@@ -223,33 +227,27 @@ $("#playLast").click(() => {
 /* ----------------------------
    AUDIO PIPELINE
 ---------------------------- */
-
+  
 async function processAudio(arrayBuffer) {
     const audioCtx = new AudioContext({ sampleRate: 16000 });
 
     const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
 
-const features = extractFeatures(audioBuffer);
-console.log("Raw features:", features);
-for (let i = 0; i < 13; i++) {
-    features[i] = (features[i] - mean[i]) / scale[i];
+    const features = extractFeatures(audioBuffer);
+    console.log("Raw features:", features);
+    for (let i = 0; i < 13; i++) {
+        features[i] = (features[i] - mean[i]) / scale[i];
+    }
+
+    console.log("Normalized features:", features);
+
+    runInference(features);
 }
-
-console.log("Normalized features:", features);
-
-runInference(features);
-}
-
-/* ----------------------------
-   SIMPLE MFCC APPROX (matches Python shape 13)
----------------------------- */
-
-
-
+  
 /* ----------------------------
    ONNX INFERENCE
 ---------------------------- */
-
+  
 async function runInference(features) {
     const input = new ort.Tensor(
         "float32",
@@ -265,7 +263,7 @@ async function runInference(features) {
 
     const output = results[session.outputNames[0]];
     const data = Array.from(output.data);
-  console.log("Raw output:", data);
+    console.log("Raw output:", data);
 
     const labels = [
         "annoyed (brushing)",
@@ -283,8 +281,6 @@ async function runInference(features) {
 
     $("#result").text(labels[maxIndex]);
 }
-
-
 </script>
 
 </body>
