@@ -27,9 +27,10 @@ has no support for iOS at the moment.
 --------------------------------------------------------------------------------
                                    PREREQUISITES                               
 --------------------------------------------------------------------------------
-- Installed Programs:                                                          
-    - Java Ver. 8+. It does not matter who published it (i.e. both OpenJDK and
-        Oracle Java worked for me).
+
+-Any device that isn't iOS or iPadOS
+-(ideally) Google Chrome for mic support
+
 --------------------------------------------------------------------------------
                                  INSTALL AND RUN                               
 --------------------------------------------------------------------------------
