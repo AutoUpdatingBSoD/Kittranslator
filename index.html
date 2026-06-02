@@ -1,14 +1,14 @@
 <!DOCTYPE html>
   <html lang="en">
   <!--Name: Michael Hammond;
-    File Name: Portfolio.html;
+    File Name: index.html;
   -->
 
   <head>
 
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Michael Hammond's Website</title>
+    <title>Kittranslator</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@0.9.3/css/bulma.min.css">
     <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web/dist/ort.min.js"></script>
@@ -19,6 +19,9 @@
     }
     .centered{
       text-align: center;
+    }
+    .width-25{
+      width: 25%;
     }
     </style>
   <body>
@@ -33,7 +36,6 @@
       <div class="buttons is-centered">
         <button class="button is-primary" id="startMic">Start Mic</button>
         <button class="button is-danger" id="stopMic">Stop Mic</button>
-        <button class="button is-link" id="playLast">Play Last Recording</button>
       </div>
 
       <br>
@@ -53,19 +55,19 @@
       <h3 id="result" class="title is-4 has-text-white">Waiting...</h3>
 
       <audio id="player" controls></audio>
-
+              <h2 class="subtitle is-5">This is super early in development and I don't have a lot of data yet, so expect bugs and inaccuracies!</h2>
     </div>
   </div>
+
+          <a href="https://autoupdatingbsod.github.io" class="button is-link centered width-25">About the Author</a>
 </section>
-        <a href="https://autoupdatingbsod.github.io" class="button is-link centered">About the Author</a>
 
-
-<body>
 
 
 
 
 <script>
+  
 /* ----------------------------
    GLOBAL STATE
 ---------------------------- */
@@ -76,7 +78,38 @@ let chunks = [];
 let lastBlob = null;
 
 let session = null;
+const mean = [
+ -15.11056098,
+ -15.06655388,
+ -14.79963755,
+ -12.10701173,
+ -8.3361578,
+ -6.9080754,
+ -6.8050199,
+ -7.7387828,
+ -9.43176519,
+ -12.75636557,
+ -14.75740773,
+ -15.1060916,
+ -15.12521379
+];
 
+const scale = [
+ 1.19643364,
+ 1.3112811,
+ 1.71614279,
+ 3.50026776,
+ 2.96512775,
+ 2.44709461,
+ 2.32429692,
+ 2.46965986,
+ 2.5462934,
+ 2.79167644,
+ 1.651525,
+ 1.21636359,
+ 1.21713445
+];
+  
 /* ----------------------------
    LOAD ONNX MODEL
 ---------------------------- */
@@ -84,14 +117,25 @@ let session = null;
 async function loadModel() {
     session = await ort.InferenceSession.create("catmeows.onnx");
     console.log("ONNX model loaded");
+    console.log(session.inputNames);
+    console.log(session.outputNames);
 }
 
-loadModel();
+$(document).ready(function () {
+    loadModel();
+
+});
 
 /* ----------------------------
    MIC RECORDING
 ---------------------------- */
+async function getAudioBuffer(file) {
+    const arrayBuffer = await file.arrayBuffer();
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 
+    return await audioCtx.decodeAudioData(arrayBuffer);
+}
+  
 $("#startMic").click(async () => {
     try {
         stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -134,11 +178,30 @@ $("#stopMic").click(() => {
 
     $("#status").text("Processing...");
 });
-
+  
 /* ----------------------------
    FILE UPLOAD
 ---------------------------- */
+  
+function extractFeatures(audioBuffer) {
+    const data = audioBuffer.getChannelData(0);
 
+    const features = new Array(13).fill(0);
+    const block = Math.floor(data.length / 13);
+
+    for (let i = 0; i < 13; i++) {
+        let sum = 0;
+
+        for (let j = 0; j < block; j++) {
+            const v = data[i * block + j];
+            sum += v * v;
+        }
+
+        features[i] = Math.log(sum / block + 1e-8);
+    }
+
+    return features;
+}
 $("#fileInput").on("change", async function (e) {
     const file = e.target.files[0];
 
@@ -152,7 +215,7 @@ $("#fileInput").on("change", async function (e) {
 /* ----------------------------
    PLAY LAST RECORDING
 ---------------------------- */
-
+  
 $("#playLast").click(() => {
     if (!lastBlob) return;
 
@@ -164,65 +227,43 @@ $("#playLast").click(() => {
 /* ----------------------------
    AUDIO PIPELINE
 ---------------------------- */
-
+  
 async function processAudio(arrayBuffer) {
     const audioCtx = new AudioContext({ sampleRate: 16000 });
 
     const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
 
-    const features = extractMFCC(audioBuffer);
+    const features = extractFeatures(audioBuffer);
+    console.log("Raw features:", features);
+    for (let i = 0; i < 13; i++) {
+        features[i] = (features[i] - mean[i]) / scale[i];
+    }
+
+    console.log("Normalized features:", features);
 
     runInference(features);
 }
-
-/* ----------------------------
-   SIMPLE MFCC APPROX (matches Python shape 13)
----------------------------- */
-
-function extractMFCC(audioBuffer) {
-    const data = audioBuffer.getChannelData(0);
-
-    const size = 13;
-    let features = new Array(size).fill(0);
-
-    const step = Math.floor(data.length / size);
-
-    for (let i = 0; i < size; i++) {
-        let sum = 0;
-
-        for (let j = 0; j < step; j++) {
-            sum += data[i * step + j] || 0;
-        }
-
-        features[i] = sum / step;
-    }
-
-    return features;
-}
-
+  
 /* ----------------------------
    ONNX INFERENCE
 ---------------------------- */
-
+  
 async function runInference(features) {
-    if (!session) {
-        $("#result").text("Model not loaded");
-        return;
-    }
-
     const input = new ort.Tensor(
         "float32",
-        Float32Array.from(features),
+        new Float32Array(features),
         [1, 13]
     );
-
+    console.log(input.dims);
+    console.log(features);
     const feeds = {};
     feeds[session.inputNames[0]] = input;
 
     const results = await session.run(feeds);
 
     const output = results[session.outputNames[0]];
-    const data = output.data;
+    const data = Array.from(output.data);
+    console.log("Raw output:", data);
 
     const labels = [
         "annoyed (brushing)",
@@ -230,11 +271,16 @@ async function runInference(features) {
         "attention/stress"
     ];
 
-    const maxIndex = data.indexOf(Math.max(...data));
+    let maxIndex = 0;
+
+    for (let i = 1; i < data.length; i++) {
+        if (data[i] > data[maxIndex]) {
+            maxIndex = i;
+        }
+    }
 
     $("#result").text(labels[maxIndex]);
 }
-
 </script>
 
 </body>
