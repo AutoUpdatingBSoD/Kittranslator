@@ -156,7 +156,13 @@ $("#startMic").click(async () => {
         };
 
         mediaRecorder.onstop = async () => {
-            lastBlob = new Blob(chunks, { type: "audio/webm" });
+        let mimeType = "";
+          if (MediaRecorder.isTypeSupported("audio/mp4")) {
+            mimeType = "audio/mp4";
+          } else if (MediaRecorder.isTypeSupported("audio/webmS")) {
+            mimeType = "audio/webm";
+          }
+            lastBlob = new Blob(chunks, { type: mimeType});
 
             // playback
             const url = URL.createObjectURL(lastBlob);
