@@ -13,9 +13,9 @@ Free and Open Source Kitty Meow Translator
 yourself or submitting .wav files) from the HTML interface and predict one of three 
 possible categories of cat meows:
 
-        - "annoyed (brushing)"
-        - "feed me"
-        - "attention/stress"
+  - annoyed/brushing
+  - feed me
+  - attention (stress)
   
 - This program can be accessed from the GitHub pages link:
     - https://autoupdatingbsod.github.io/Kittranslator
