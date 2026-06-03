@@ -16,8 +16,9 @@ possible categories of cat meows:
         - "annoyed (brushing)"
         - "feed me"
         - "attention/stress"
+  
 - This program can be accessed from the GitHub pages link:
-        https://autoupdatingbsod.github.io/Kittranslator
+    - https://autoupdatingbsod.github.io/Kittranslator
        
 - This application relies heavily on the ONNX Machine Learning API, which currently 
 has no support for iOS at the moment.
@@ -28,7 +29,7 @@ has no support for iOS at the moment.
                                    PREREQUISITES                               
 --------------------------------------------------------------------------------
 
-- Any device that isn't iOS or iPadOS
+- ~~Any device that isn't iOS or iPadOS~~ Any modern device
 - (ideally) Google Chrome for mic support
 
 --------------------------------------------------------------------------------
@@ -47,14 +48,14 @@ has no support for iOS at the moment.
 --------------------------------------------------------------------------------
 - Trained Datasets
 
-    -CatMeows
-        link: https://zenodo.org/records/4008297
+    - CatMeows
+        - link: https://zenodo.org/records/4008297
     
 - Roadmap:
 
    - ~~- Complete prototype~~ Done
    - ~~- Make it look halfway decent~~ Done
    - Finish fully working app
-   - Make it work on iOS (stretch goal)
+   - ~~Make it work on iOS (stretch goal)~~ Done
    
 --------------------------------------------------------------------------------
